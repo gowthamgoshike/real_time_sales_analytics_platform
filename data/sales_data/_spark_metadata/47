@@ -1,3 +1,0 @@
-v1
-{"path":"file:///Users/gowthamgoshike/projects/real_time_sales_analytics_platform/data/sales_data/year=2026/month=3/day=6/part-00000-31333248-4fa8-4a9c-866a-e12235387193.c000.snappy.parquet","size":2144,"isDir":false,"modificationTime":1772820749436,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///Users/gowthamgoshike/projects/real_time_sales_analytics_platform/data/sales_data/year=2026/month=3/day=6/part-00001-563acba9-4d93-40e0-9cc4-70753e9ed412.c000.snappy.parquet","size":2144,"isDir":false,"modificationTime":1772820749575,"blockReplication":1,"blockSize":33554432,"action":"add"}

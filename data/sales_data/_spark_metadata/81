@@ -1,4 +1,0 @@
-v1
-{"path":"file:///Users/gowthamgoshike/projects/real_time_sales_analytics_platform/data/sales_data/year=2026/month=3/day=6/part-00000-cd07c6e2-9ae3-46e6-b55f-58c6cfa83f78.c000.snappy.parquet","size":4138,"isDir":false,"modificationTime":1772820943318,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///Users/gowthamgoshike/projects/real_time_sales_analytics_platform/data/sales_data/year=2026/month=3/day=6/part-00001-35f8ba1a-ac9e-42a3-826f-a44c40e9e075.c000.snappy.parquet","size":3543,"isDir":false,"modificationTime":1772820943315,"blockReplication":1,"blockSize":33554432,"action":"add"}
-{"path":"file:///Users/gowthamgoshike/projects/real_time_sales_analytics_platform/data/sales_data/year=2026/month=3/day=6/part-00002-7e50a04d-06de-4d88-9791-3ca7a7130c1a.c000.snappy.parquet","size":4042,"isDir":false,"modificationTime":1772820943314,"blockReplication":1,"blockSize":33554432,"action":"add"}

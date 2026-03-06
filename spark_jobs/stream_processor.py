@@ -1,15 +1,43 @@
+import os
+from dotenv import load_dotenv
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, year, month, dayofmonth
+from pyspark.sql.functions import col, from_json, sum
 from pyspark.sql.types import StructType, IntegerType, DoubleType, StringType
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Access credentials
+aws_access_key = os.getenv("AWS_ACCESS_KEY")
+aws_secret_key = os.getenv("AWS_SECRET_KEY")
+
+if not aws_access_key or not aws_secret_key:
+    print("ERROR: AWS Credentials not found in .env file!")
+# -----------------------------------
+# Spark Session
+# -----------------------------------
+# -----------------------------------
+# Spark Session
+# -----------------------------------
 spark = SparkSession.builder \
-    .appName("RealTimeSalesProcessing") \
+    .appName("RealTimeSalesMedallionPipeline") \
+    .config("spark.driver.host", "127.0.0.1") \
+    .config("spark.driver.bindAddress", "127.0.0.1") \
     .config("spark.sql.streaming.fileSink.log.deletion", "false") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
     .getOrCreate()
+# Set S3 Credentials from .env
+spark._jsc.hadoopConfiguration().set("fs.s3a.access.key", aws_access_key)
+spark._jsc.hadoopConfiguration().set("fs.s3a.secret.key", aws_secret_key)
+spark._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "s3.amazonaws.com")
 
 spark.sparkContext.setLogLevel("WARN")
 
-# Define schema
+# -----------------------------------
+# Schema
+# -----------------------------------
+
 schema = StructType() \
     .add("transaction_id", IntegerType()) \
     .add("product_id", IntegerType()) \
@@ -18,7 +46,10 @@ schema = StructType() \
     .add("quantity", IntegerType()) \
     .add("timestamp", StringType())
 
-# Read Kafka stream
+# -----------------------------------
+# Read Kafka Stream
+# -----------------------------------
+
 kafka_df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
@@ -26,33 +57,74 @@ kafka_df = spark.readStream \
     .option("startingOffsets", "latest") \
     .load()
 
-# Convert Kafka value to JSON
+# -----------------------------------
+# Convert Kafka Value → JSON
+# -----------------------------------
+
 json_df = kafka_df.selectExpr("CAST(value AS STRING)")
 
-# Parse JSON
 sales_df = json_df.select(
     from_json(col("value"), schema).alias("data")
 ).select("data.*")
 
-# Feature engineering
+# -----------------------------------
+# Feature Engineering
+# -----------------------------------
+
 sales_df = sales_df.withColumn(
     "total_sale",
     col("price") * col("quantity")
 )
 
-# Add partitions for data lake
-sales_df = sales_df \
-    .withColumn("year", year("timestamp")) \
-    .withColumn("month", month("timestamp")) \
-    .withColumn("day", dayofmonth("timestamp"))
+# =========================================================
+# BRONZE LAYER (RAW DATA)
+# =========================================================
 
-# Write to Data Lake
-query = sales_df.writeStream \
+bronze_query = sales_df.writeStream \
     .format("parquet") \
-    .option("path", "data/sales_data") \
-    .option("checkpointLocation", "data/checkpoints") \
-    .partitionBy("year", "month", "day") \
+    .option("path", "s3a://sales-analytics-data-lake-23052021/bronze/sales") \
+    .option("checkpointLocation", "s3a://sales-analytics-data-lake-23052021/checkpoints/bronze") \
     .outputMode("append") \
     .start()
 
-query.awaitTermination()
+# =========================================================
+# SILVER LAYER (CLEAN DATA)
+# =========================================================
+
+silver_df = sales_df.dropDuplicates(["transaction_id"]) \
+    .filter(col("price") > 0)
+
+silver_query = silver_df.writeStream \
+    .format("parquet") \
+    .option("path", "s3a://sales-analytics-data-lake-23052021/silver/sales") \
+    .option("checkpointLocation", "s3a://sales-analytics-data-lake-23052021/checkpoints/silver") \
+    .outputMode("append") \
+    .start()
+
+# =========================================================
+# GOLD LAYER (BUSINESS METRICS)
+# =========================================================
+
+gold_df = silver_df.groupBy("product_id") \
+    .agg(
+        sum("total_sale").alias("total_revenue")
+    )
+
+# Define a function to handle each micro-batch
+def write_gold_layer(batch_df, batch_id):
+    batch_df.write \
+        .format("parquet") \
+        .mode("overwrite") \
+        .save("s3a://sales-analytics-data-lake-23052021/gold/product_sales")
+
+# Use foreachBatch instead of format("parquet")
+gold_query = gold_df.writeStream \
+    .foreachBatch(write_gold_layer) \
+    .outputMode("complete") \
+    .option("checkpointLocation", "s3a://sales-analytics-data-lake-23052021/checkpoints/gold") \
+    .start()
+# -----------------------------------
+# Keep Streaming Running
+# -----------------------------------
+
+spark.streams.awaitAnyTermination()
