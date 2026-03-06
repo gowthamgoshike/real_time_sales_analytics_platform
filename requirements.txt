@@ -1,0 +1,16 @@
+pandas
+numpy
+pyspark
+kafka-python
+fastapi
+uvicorn
+streamlit
+scikit-learn
+mlflow
+apache-airflow
+psycopg2-binary
+boto3
+python-dotenv
+plotly
+xgboost
+lightgbm
