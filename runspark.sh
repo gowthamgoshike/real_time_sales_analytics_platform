@@ -1,6 +1,6 @@
 #!/bin/bash
 # Clean up old broken state
-rm -rf data/checkpoints data/processed
+#rm -rf data/checkpoints data/processed
 # Run spark with enough memory
 spark-submit \
   --driver-memory 2g \
