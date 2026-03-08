@@ -39,3 +39,13 @@ def predict(data: SalesFeatures):
     return {
         "predicted_revenue": float(prediction[0])
     }
+@app.get("/model_info")
+def model_info():
+
+    return {
+        "model_type": "RandomForestRegressor",
+        "features": [
+            "avg_sale_per_product",
+            "high_revenue_product"
+        ]
+    }
