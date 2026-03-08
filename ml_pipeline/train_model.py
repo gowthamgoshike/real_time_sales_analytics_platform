@@ -68,8 +68,8 @@ with mlflow.start_run():
 
     rmse = root_mean_squared_error(y_test, predictions)
     print(f"Model RMSE: {rmse}")
-    
-    model_dir = 'models/model'
+
+    model_dir = 'models/'
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
         print(f"Created directory: {model_dir}")
