@@ -1,0 +1,23 @@
+artifact_path: /Users/gowthamgoshike/projects/real_time_sales_analytics_platform/mlruns/1/models/m-48a16242fc8c4c4f89489a404367886b/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.11.6
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.10.1
+model_id: m-48a16242fc8c4c4f89489a404367886b
+model_size_bytes: 275958
+model_uuid: m-48a16242fc8c4c4f89489a404367886b
+prompts: null
+run_id: 8bbe2cf0031b4a20b542398609383ccf
+utc_time_created: '2026-03-10 21:05:39.611026'

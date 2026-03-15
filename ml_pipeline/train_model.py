@@ -53,7 +53,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # MLflow Tracking
 # ------------------------------
 
-mlflow.set_experiment("sales_prediction")
+mlflow.set_experiment("sales_prediction_model")
 
 with mlflow.start_run():
 

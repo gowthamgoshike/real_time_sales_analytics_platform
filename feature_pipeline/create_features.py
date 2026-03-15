@@ -1,61 +1,67 @@
-import pandas as pd
+#!/usr/bin/env python3
 import os
-import joblib
+import pandas as pd
+import s3fs
 from sqlalchemy import create_engine
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-# Updated import for newer scikit-learn versions
-from sklearn.metrics import root_mean_squared_error 
 from dotenv import load_dotenv
 
-# Load environment variables
+# ---------------------------------------------------------
+# 1. Configuration & Environment Setup
+# ---------------------------------------------------------
 load_dotenv()
 
-# --- Database Connection (PostgreSQL RDS) ---
+# Database Credentials
 db_host = os.getenv("POSTGRES_HOST")
 db_name = os.getenv("POSTGRES_DB")
 db_user = os.getenv("POSTGRES_USER")
 db_password = os.getenv("POSTGRES_PASSWORD")
 
-# Use ?sslmode=require for AWS RDS connection
-engine = create_engine(f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}?sslmode=require")
+# AWS Credentials
+aws_access_key = os.getenv("AWS_ACCESS_KEY")
+aws_secret_key = os.getenv("AWS_SECRET_KEY")
 
-def train_sales_model():
-    # 1. Load Features from RDS Feature Store
-    print("Fetching features from PostgreSQL RDS...")
-    query = "SELECT * FROM product_features"
-    df = pd.read_sql(query, engine)
-    
-    if df.empty:
-        print("Error: No data found in product_features table. Run create_features.py first.")
-        return
 
-    print("Loaded Features (first 5 rows):")
-    print(df.head())
+# Passing this object to pandas instead of a string fixes the ImportError.
+db_url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:5432/{db_name}"
+engine = create_engine(db_url)
 
-    # 2. Prepare Data
-    # Features: engineered in Day 5
-    # Target: total_revenue
-    X = df[["avg_sale_per_product", "high_revenue_product"]]
-    y = df["total_revenue"]
+print("Connecting to S3 to find parquet files...")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+fs = s3fs.S3FileSystem(key=aws_access_key, secret=aws_secret_key)
+s3_folder = "sales-analytics-data-lake-23052021/gold/product_sales/"
+file_paths = fs.glob(f"{s3_folder}*.parquet")
 
-    # 3. Train Model
-    print("Training Random Forest model...")
-    model = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
-    model.fit(X_train, y_train)
+if not file_paths:
+    raise FileNotFoundError(f"No parquet files found in s3://{s3_folder}")
 
-    # 4. Evaluate (Using the new root_mean_squared_error function)
-    predictions = model.predict(X_test)
-    rmse = root_mean_squared_error(y_test, predictions)
-    print(f"Model Training Complete. RMSE: {rmse:.2f}")
+print(f"Found {len(file_paths)} files. Loading data into memory...")
+df = pd.read_parquet(file_paths, filesystem=fs, engine='pyarrow')
+print(f"Successfully loaded {len(df)} rows.")
 
-    # 5. Save Model Locally
-    os.makedirs("models", exist_ok=True)
-    model_path = "models/sales_model.pkl"
-    joblib.dump(model, model_path)
-    print(f"Model saved successfully to {model_path}")
 
-if __name__ == "__main__":
-    train_sales_model()
+df["total_revenue"] = df["total_revenue"].astype(float)
+
+# Deduplicate to keep only one row per product_id
+df = df.sort_values(by="total_revenue", ascending=False)
+df = df.drop_duplicates(subset=["product_id"], keep="first")
+
+# Perform calculations on the clean dataset
+df["avg_sale_per_product"] = df["total_revenue"] / 30
+df["high_revenue_product"] = (
+    df["total_revenue"] > df["total_revenue"].mean()
+).astype(int)
+
+print(f"Cleaned data: {len(df)} unique products remaining.")
+
+print("Storing features in PostgreSQL 'product_features' table...")
+
+# Use the engine directly, but wrap the execution
+df.to_sql(
+    name="product_features",
+    con=engine,             # Use the engine object
+    if_exists="replace",
+    index=False,
+    method="multi"          # This often forces pandas to use a different execution path
+)
+
+print("✅ Success: Features successfully stored in PostgreSQL.")
