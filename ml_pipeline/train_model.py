@@ -7,9 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import root_mean_squared_error
 import os
-# ------------------------------
-# Database Connection
-# ------------------------------
+
 
 from dotenv import load_dotenv
 
@@ -26,9 +24,7 @@ yourpassword = os.getenv("POSTGRES_PASSWORD")
 engine = create_engine(
     f"postgresql://{postgres}:{yourpassword}@{RDS_ENDPOINT}:5432/{sales_feature_store}?sslmode=require"
 )
-# ------------------------------
-# Load Features
-# ------------------------------
+
 
 query = "SELECT * FROM product_features"
 
@@ -37,10 +33,7 @@ df = pd.read_sql(query, engine)
 print("Loaded Features:")
 print(df.head())
 
-# ------------------------------
-# Prepare Dataset
-# ------------------------------
-
+z
 X = df[["avg_sale_per_product", "high_revenue_product"]]
 
 y = df["total_revenue"]
@@ -49,9 +42,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# ------------------------------
-# MLflow Tracking
-# ------------------------------
+
 
 mlflow.set_experiment("sales_prediction_model")
 
