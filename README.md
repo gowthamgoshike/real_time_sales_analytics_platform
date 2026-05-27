@@ -73,7 +73,6 @@ Workflow orchestration is handled using **Apache Airflow DAGs**.
 
 ### Infrastructure
 - Docker
-- Terraform
 - AWS Free Tier
 
 ---
